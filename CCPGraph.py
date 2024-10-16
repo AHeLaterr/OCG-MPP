@@ -53,43 +53,41 @@ class DiffPoolLayer(nn.Module):
         return x, adj, l, e
 
 
-def reset(nn):  # 重置传入的神经网络模型（nn）或其子模块的参数到初始状态
-    '''让有重置参数的nn进行权重和偏置的重置， 检查该模块下面有无子模块   有子模块就重置子模块的权重  没有就重置本模块的权重'''
+def reset(nn):  
 
-    def _reset(item):  # _reset 是一个内部辅助函数
-        if hasattr(item, 'reset_parameters'):  # 检查传入的item是否有reset_parameters方法
+    def _reset(item):  
+        if hasattr(item, 'reset_parameters'):  
             item.reset_parameters()
 
-    if nn is not None:  # 检查传入的nn（神经网络模型或层）是否为None
-        if hasattr(nn, 'children') and len(list(nn.children())) > 0:  # 检查nn是否有子模块（children）
-            for item in nn.children():  # 如果nn包含子模块，则递归地对每个子模块调用_reset函数
+    if nn is not None: 
+        if hasattr(nn, 'children') and len(list(nn.children())) > 0: 
+            for item in nn.children():  
                 _reset(item)
-        else:  # 如果nn不包含子模块，则直接对nn调用_reset函数
+        else:  
             _reset(nn)
 
 
 class GlobalAttention(torch.nn.Module):
-    """在图神经网络中  更有效地学习节点间的相互作用和图的全局结构特征。"""
 
     def __init__(self, gate_nn, nn=None):
         super().__init__()
-        self.gate_nn = gate_nn  # gate_nn是用来计算注意力门控信号的网络(控制或加权节点特征贡献的关键部分)，
-        self.nn = nn  # nn是可选的，用于对输入特征进行额外的变换
-        self.reset_parameters()  # 初始化时重置参数
+        self.gate_nn = gate_nn 
+        self.nn = nn  
+        self.reset_parameters() 
 
     def reset_parameters(self):
-        reset(self.gate_nn)  # 调用reset函数重置gate_nn和nn的参数
+        reset(self.gate_nn) 
         reset(self.nn)
 
-    def forward(self, x, batch, size=None):  # batch 是一个数组，指示每个节点属于哪个图
-        x = x.unsqueeze(-1) if x.dim() == 1 else x  # 如果是一维的则增加维度
-        size = batch[-1].item() + 1 if size is None else size  # 确定聚合的大小
-        gate = self.gate_nn(x).view(-1, 1)  # gate_nn 应用于特征 x，输出每个节点的注意力得分
-        x = self.nn(x) if self.nn is not None else x  # 如果提供了nn，则对x进行额外的变换
-        assert gate.dim() == x.dim() and gate.size(0) == x.size(0)  # 确保gate和x的维度一致
-        gate = softmax(gate, batch, num_nodes=size)  # 对gate应用softmax函数进行归一化
-        out = scatter_add(gate * x, batch, dim=0, dim_size=size)  # 使用scatter_add聚合节点特征
-        return out, gate  # 返回聚合后的图级别特征和节点的注意力权重
+    def forward(self, x, batch, size=None): 
+        x = x.unsqueeze(-1) if x.dim() == 1 else x  
+        size = batch[-1].item() + 1 if size is None else size 
+        gate = self.gate_nn(x).view(-1, 1)  
+        x = self.nn(x) if self.nn is not None else x  
+        assert gate.dim() == x.dim() and gate.size(0) == x.size(0)  
+        gate = softmax(gate, batch, num_nodes=size)  
+        out = scatter_add(gate * x, batch, dim=0, dim_size=size)  
+        return out, gate  
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}(gate_nn={self.gate_nn}, nn={self.nn})')
