@@ -10,17 +10,14 @@ class CIFDataset(Dataset):
                  melting_point_dict=None, global_features_csv=None):
         self.cif_directory = cif_directory
         self.data_list = preprocessed_data_list if preprocessed_data_list is not None else []
-
-        if self.data_list:  # 如果有预处理数据，就不加载CSV
+        if self.data_list:  
             return
-
-        # 如果没有预处理数据，才继续加载CSV
         if melting_point_dict is not None:
             self.melting_point_dict = melting_point_dict
         elif melting_point_txt:
-            # 读取没有表头的txt文件，假设文件以空格或制表符分隔
+            
             df = pd.read_csv(melting_point_txt, sep='\s+', header=None, names=['refcode', 'melting_point'])
-            # 如果只有refcode没有melting_point列时, 创建melting_point字典
+            
             if df.shape[1] == 1:
                 self.melting_point_dict = {refcode: None for refcode in df['refcode']}
             else:
@@ -30,7 +27,6 @@ class CIFDataset(Dataset):
 
         self.refcodes = list(self.melting_point_dict.keys())
 
-        # 加载全局特征
         if global_features_csv:
             self.global_features_df = pd.read_csv(global_features_csv, index_col='Filename')
         else:
